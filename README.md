@@ -24,8 +24,8 @@ construção.
 4. Todo mundo clona:
 
 ```bash
-git clone https://github.com/<owner>/cicd-grupo-<N>.git
-cd cicd-grupo-<N>
+git clone https://github.com/<owner>/cicd-eedth.git
+cd cicd-eedth
 ```
 
 Pelo `gh` CLI, os passos 1 a 4 viram:
