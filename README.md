@@ -32,12 +32,13 @@ Pelo `gh` CLI, os passos 1 a 4 viram:
 
 Caso não tenha instalado o gh 
 
+```bash
 Debian
 sudo apt install gh
 
 RedHat
 sudo yum install gh
-
+```
 ```bash
 gh repo create cicd-eedth --template HardSource/cicd-starter-kit --private --clone
 
