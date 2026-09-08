@@ -24,7 +24,7 @@ construção.
 4. Todo mundo clona:
 
 ```bash
-git clone https://github.com/<owner>/cicd-eedth.git
+git clone https://github.com/emcsmalone/cicd-eedth.git
 cd cicd-eedth
 ```
 
@@ -34,10 +34,10 @@ Pelo `gh` CLI, os passos 1 a 4 viram:
 gh repo create cicd-grupo-1 --template HardSource/cicd-starter-kit --private --clone
 
 # membros do grupo (repetir para cada um)
-gh api -X PUT /repos/<owner>/cicd-grupo-1/collaborators/<username> -f permission=push
+gh api -X PUT /repos/emcsmalone/cicd-grupo-1/collaborators/<username> -f permission=push
 
 # professor, somente leitura
-gh api -X PUT /repos/<owner>/cicd-grupo-1/collaborators/HardSource -f permission=pull
+gh api -X PUT /repos/emcsmalone/cicd-grupo-1/collaborators/HardSource -f permission=pull
 ```
 
 > Convidar o professor **no início**, não na véspera da apresentação: o convite
@@ -217,7 +217,7 @@ nas duas rubricas. O mínimo esperado:
 ```markdown
 # CI/CD Grupo <N>
 
-![CI](https://github.com/<owner>/<repo>/actions/workflows/ci.yml/badge.svg)
+![CI](https://github.com/emcsmalone/<repo>/actions/workflows/ci.yml/badge.svg)
 
 ## Membros
 - @user1 (Owner) · @user2 · @user3 · @user4
