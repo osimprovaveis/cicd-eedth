@@ -16,7 +16,7 @@ construção.
 **Só o Repo Owner da equipe faz isto.** Os demais aguardam o convite.
 
 1. Neste repositório, clicar em **Use this template → Create a new repository**
-2. Nome sugerido: `cicd-grupo-<N>` · Visibilidade: **Private**
+2. Nome sugerido: `cicd-grupo-eedth` · Visibilidade: **Private**
 3. **Settings → Collaborators → Add people**:
    - cada membro do grupo com permissão **Write**
    - **`HardSource`** (o professor) com permissão **Read** — é assim que a entrega
