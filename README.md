@@ -16,7 +16,7 @@ construção.
 **Só o Repo Owner da equipe faz isto.** Os demais aguardam o convite.
 
 1. Neste repositório, clicar em **Use this template → Create a new repository**
-2. Nome sugerido: `cicd-grupo-eedth` · Visibilidade: **Private**
+2. Nome sugerido: `cicd-eedth` · Visibilidade: **Private**
 3. **Settings → Collaborators → Add people**:
    - cada membro do grupo com permissão **Write**
    - **`HardSource`** (o professor) com permissão **Read** — é assim que a entrega
@@ -31,13 +31,13 @@ cd cicd-eedth
 Pelo `gh` CLI, os passos 1 a 4 viram:
 
 ```bash
-gh repo create cicd-grupo-1 --template HardSource/cicd-starter-kit --private --clone
+gh repo create cicd-eedth --template HardSource/cicd-starter-kit --private --clone
 
 # membros do grupo (repetir para cada um)
-gh api -X PUT /repos/emcsmalone/cicd-grupo-1/collaborators/<username> -f permission=push
+gh api -X PUT /repos/emcsmalone/cicd-eedth/collaborators/<username> -f permission=push
 
 # professor, somente leitura
-gh api -X PUT /repos/emcsmalone/cicd-grupo-1/collaborators/HardSource -f permission=pull
+gh api -X PUT /repos/emcsmalone/cicd-eedth/collaborators/HardSource -f permission=pull
 ```
 
 > Convidar o professor **no início**, não na véspera da apresentação: o convite
