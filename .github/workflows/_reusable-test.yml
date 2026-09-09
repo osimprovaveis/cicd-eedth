@@ -1,48 +1,52 @@
-# ABOUTME: Esqueleto do reusable workflow que concentra os steps de teste do CI.
-# ABOUTME: Renomeie para _reusable-test.yml e complete os TODOs.
-#
-# Por que o prefixo _ : convenção que sinaliza workflow de apoio, chamado por
-# outros via `uses:` e nunca disparado por evento próprio.
-#
-# Referência: docs/ci-pipeline.md
-
-name: Reusable — Test
-
-# workflow_call é o que torna este arquivo chamável por outro workflow.
+name: Reusable test
 on:
   workflow_call:
     inputs:
-      python-version:
-        description: 'Versão do Python para rodar os testes'
+      python-versions:
+        description: JSON array of Python versions to test against
+        required: false
         type: string
-        required: true
+        default: '["3.10", "3.11", "3.12"]'
+
+env:
+  IMAGE_NAME: app-k8s-todolist
 
 jobs:
   test:
-    name: Test (Python ${{ inputs.python-version }})
+    name: Test (Python ${{ matrix.python-version }})
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ${{ fromJSON(inputs.python-versions) }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        # Dica de segurança da aula: substituir @v4 pelo hash SHA do commit no ambiente produtivo
+        uses: actions/checkout@v4 
 
-      # TODO: mova para cá os steps que estavam no ci.yml. A diferença é que a
-      # versão do Python vem de ${{ inputs.python-version }} em vez de
-      # ${{ matrix.python-version }} — a matrix fica no chamador.
-      #
-      #   - actions/setup-python@v5   com python-version: ${{ inputs.python-version }}
-      #   - actions/cache@v4          para ~/.cache/pip
-      #   - pip install -r requirements.txt && pip install -r requirements-dev.txt
-      #   - pytest -v
-      #   - pip-audit
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+          cache-dependency-path: requirements-dev.txt
 
-      # TODO: adicione o scan do Trivy ANTES do pytest. aquasecurity/trivy-action
-      # com scan-type: fs, severity: HIGH,CRITICAL, exit-code: '1' (é o que faz
-      # virar gate) e ignore-unfixed: true. Exportando format: sarif, suba o
-      # resultado com github/codeql-action/upload-sarif — exige
-      # security-events: write nas permissions do ci.yml.
+      - name: Install dev dependencies
+        run: pip install -r requirements-dev.txt
 
-      # Guarda temporária: remova ao completar os TODOs acima.
-      - name: TODO guard
-        run: |
-          echo 'Os steps de teste ainda não foram movidos para este reusable.'
-          exit 1
+      - name: Scan image with Trivy
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          image-ref: ${{ env.IMAGE_NAME }}:${{ github.sha }}
+          format: table
+          exit-code: '1'
+          ignore-unfixed: true
+          vuln-type: os, library
+          severity: MEDIUM, HIGH, CRITICAL
+          skip-setup-trivy: true
+
+      - name: Run pytest
+        run: pytest -q
+
+      - name: Audit dependencies
+        run: pip-audit -r requirements.txt
