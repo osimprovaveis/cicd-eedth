@@ -52,11 +52,11 @@ jobs:
       # E um restore-keys para aproveitar cache parcial quando as deps mudam.
 
       # TODO: instale as dependências.
-      #   pip install -r requirements.txt
-      #   pip install -r requirements-dev.txt
+         pip install -r requirements.txt
+         pip install -r requirements-dev.txt
 
       # TODO: rode os testes.
-      #   pytest -v
+         pytest -v
 
       # TODO: o gate de segurança (shift-left). pip-audit consulta a base de CVEs
       # do PyPI/OSV e falha o job quando acha vulnerabilidade com correção
