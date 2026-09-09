@@ -42,7 +42,7 @@ jobs:
           exit-code: '1'
           ignore-unfixed: true
           vuln-type: os,library
-          severity: MEDIUM, HIGH, CRITICAL
+          severity: MEDIUM,HIGH,CRITICAL
           skip-setup-trivy: false
 
       - name: Run pytest
