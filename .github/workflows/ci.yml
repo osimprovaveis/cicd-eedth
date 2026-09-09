@@ -24,7 +24,7 @@ on:
     
   # TODO: substitua este bloco pelos gatilhos acima.
   # workflow_dispatch permite disparar na mão enquanto você ainda está montando.
-  workflow_dispatch:
+  ## workflow_dispatch:
 
 # Menor privilégio: o GITHUB_TOKEN deste workflow só consegue LER o repositório.
 # Sem este bloco, o token vem com contents: write por padrão.
@@ -35,9 +35,11 @@ env:
   IMAGE_NAME: app-k8s-todolist
 
 jobs:
-  test:
-    name: Test
+  lint:
+    name: Lint (ruff)
     runs-on: ubuntu-latest
+    
+      
 
     # TODO: transforme este job numa matrix de três versões do Python (3.10,
     # 3.11 e 3.12) com fail-fast: false, e troque o name acima por
