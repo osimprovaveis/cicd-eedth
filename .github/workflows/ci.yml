@@ -5,6 +5,7 @@ on:
     tags: ['*']
   pull_request:
     branches: [main]
+  workflow_dispatch: #habilita o botão para rodar manual o action
 
 permissions:
   contents: read
