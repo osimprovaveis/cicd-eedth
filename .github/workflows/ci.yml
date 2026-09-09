@@ -16,6 +16,12 @@ name: CI
 #   - pull_request com branches: [main]
 #   - push com branches: [main]
 on:
+  push:
+    branches: [main]
+    tags: ['*']
+  pull_request:
+    branches: [main]
+    
   # TODO: substitua este bloco pelos gatilhos acima.
   # workflow_dispatch permite disparar na mão enquanto você ainda está montando.
   workflow_dispatch:
@@ -24,6 +30,9 @@ on:
 # Sem este bloco, o token vem com contents: write por padrão.
 permissions:
   contents: read
+
+env:
+  IMAGE_NAME: app-k8s-todolist
 
 jobs:
   test:
