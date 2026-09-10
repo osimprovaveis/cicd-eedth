@@ -1,6 +1,8 @@
-[![.github/workflows/ci.yml](https://github.com/emcsmalone/cicd-eedth/actions/workflows/ci.yml/badge.svg)](https://github.com/emcsmalone/cicd-eedth/actions/workflows/ci.yml)
+
 
 # Starter-kit — CI/CD e Automação de Deployments
+
+[![.github/workflows/ci.yml](https://github.com/emcsmalone/cicd-eedth/actions/workflows/ci.yml/badge.svg)](https://github.com/emcsmalone/cicd-eedth/actions/workflows/ci.yml)
 
 Repositório-base da disciplina. Cada equipe cria **o seu** repositório a partir
 deste template e o evolui ao longo do curso, entregando dois projetos avaliativos:
