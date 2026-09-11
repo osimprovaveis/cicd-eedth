@@ -7,5 +7,5 @@
 /.github/workflows/     @emcsmalone
 
 # Manifestos de deploy - todos revisam quando mudar
-/k8s/                   @emcsmalone @dhuberto @tiagocamilos @tongenx @helierison 
+/k8s/                  @emcsmalone @tiagocamilos @dhuberto @tongenx @helierison @HardSource
 
