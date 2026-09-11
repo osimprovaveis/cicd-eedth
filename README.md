@@ -2,7 +2,7 @@ AGORAVAI ;)
 
 # Starter-kit — CI/CD e Automação de Deployments
 
-Mudança 365000
+Mudança 365000 / 2
 
 [![.github/workflows/ci.yml](https://github.com/emcsmalone/cicd-eedth/actions/workflows/ci.yml/badge.svg)](https://github.com/emcsmalone/cicd-eedth/actions/workflows/ci.yml)
 
