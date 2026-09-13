@@ -6,3 +6,7 @@ venv/
 .ruff_cache/
 *.db
 .vscode/settings.json
+
+# Ambientes virtuais em qualquer profundidade, inclusive nomes como "venv."
+venv*/
+.venv*/

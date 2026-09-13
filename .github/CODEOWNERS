@@ -1,10 +1,12 @@
-#.github/CODEOWNERS
-# Todos os owners precisam ter permissão Write no repo.
-# Fallback: qualquer arquivo não coberto pelas regras abaixo
+# .github/CODEOWNERS
+# Code owners precisam ter permissão Write no repo.
+# O professor (@HardSource) é collaborator Read
+
+# Todo o repositório
 *                       @emcsmalone @dhuberto @Tiagocamilos @tongenx @helierison
 
-# Pipeline é código crítico
-/.github/workflows/     @emcsmalone @dhuberto @Tiagocamilos
+# Workflows do CI/CD — dono do repo obrigatório
+/.github/workflows/     @emcsmalone
 
-# Manifestos de deploy
+# Manifestos de deploy — todos revisam quando mudar
 /k8s/                   @emcsmalone @dhuberto @Tiagocamilos @tongenx @helierison

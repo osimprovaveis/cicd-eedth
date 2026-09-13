@@ -3,53 +3,55 @@ name: CI
 on:
   push:
     branches: [main]
+    tags: ['*']
   pull_request:
     branches: [main]
+  workflow_dispatch:        # permite rodar manual pela aba Actions
 
-# Menor privilégio: todo job herda read. Quem precisar de mais, pede no próprio job.
 permissions:
   contents: read
 
 jobs:
   test:
-    name: Test (Python ${{ matrix.python-version }})
+    name: Test
     uses: ./.github/workflows/_reusable-test.yml
-    strategy:
-      fail-fast: false      # queremos saber se quebrou em 1 ou nas 3, não só na primeira
-      matrix:
-        python-version: ['3.10', '3.11', '3.12']
-    with:
-      python-version: ${{ matrix.python-version }}
+    # Sem "with": usa o default do reusable ["3.10", "3.11", "3.12"]
 
   notify:
-    name: Notify
-    runs-on: ubuntu-latest
-    needs: test
+    name: Notify pipeline result
+    needs: [test]
     if: always()            # sem isto, nunca avisaria justamente sobre falha
+    runs-on: ubuntu-latest
     steps:
-      - name: Send notification
+      - name: Compose message
+        id: msg
+        run: |
+          if [ "${{ needs.test.result }}" = "success" ]; then
+            echo "status=SUCESSO" >> "$GITHUB_OUTPUT"
+            echo "color=3066993" >> "$GITHUB_OUTPUT"
+          else
+            echo "status=FALHA" >> "$GITHUB_OUTPUT"
+            echo "color=15158332" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Send webhook
         env:
           WEBHOOK_URL: ${{ secrets.NOTIFY_WEBHOOK_URL }}
-          STATUS: ${{ needs.test.result }}
-          BRANCH: ${{ github.head_ref || github.ref_name }}
-          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-          REPO: ${{ github.repository }}
         run: |
           if [ -z "$WEBHOOK_URL" ]; then
             echo "NOTIFY_WEBHOOK_URL nao configurado. Pulando."
             exit 0
           fi
-          if [ "$STATUS" = "success" ]; then
-            EMOJI="✅"; COLOR=3066993
-          else
-            EMOJI="❌"; COLOR=15158332
-          fi
-          curl -X POST -H "Content-Type: application/json" \
-            -d "{
-              \"embeds\": [{
-                \"title\": \"$EMOJI CI: $STATUS — $REPO\",
-                \"description\": \"**Branch:** $BRANCH\n[Ver o run]($RUN_URL)\",
-                \"color\": $COLOR
+          curl -X POST -H 'Content-Type: application/json' \
+            -d '{
+              "embeds": [{
+                "title": "${{ steps.msg.outputs.status }} — ${{ github.repository }}",
+                "color": ${{ steps.msg.outputs.color }},
+                "fields": [
+                  {"name": "Branch", "value": "${{ github.head_ref || github.ref_name }}", "inline": true},
+                  {"name": "Author", "value": "${{ github.actor }}", "inline": true}
+                ],
+                "url": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
               }]
-            }" \
+            }' \
             "$WEBHOOK_URL"

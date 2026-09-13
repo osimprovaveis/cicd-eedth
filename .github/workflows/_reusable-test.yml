@@ -1,57 +1,54 @@
-# Workflow de apoio: chamado pelo ci.yml, nunca disparado por evento próprio.
-name: Reusable Test
+name: Reusable test
 
 on:
   workflow_call:
     inputs:
-      python-version:
-        description: Versão do Python usada nos testes
-        required: true
+      python-versions:
+        description: JSON array of Python versions to test against
+        required: false
         type: string
+        default: '["3.10", "3.11", "3.12"]'
 
 jobs:
   test:
-    name: Run Tests
+    name: Test (Python ${{ matrix.python-version }})
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false      # queremos o quadro completo, não só o primeiro erro
+      matrix:
+        python-version: ${{ fromJSON(inputs.python-versions) }}
     steps:
-      - name: Checkout code
+      - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Python
+      - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: ${{ inputs.python-version }}
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+          cache-dependency-path: requirements-dev.txt
 
-      - name: Cache pip packages
-        uses: actions/cache@v4
-        with:
-          path: ~/.cache/pip
-          # A versão do Python entra na chave: cache de 3.10 não serve para 3.12
-          key: ${{ runner.os }}-py${{ inputs.python-version }}-pip-${{ hashFiles('requirements*.txt') }}
-          restore-keys: |
-            ${{ runner.os }}-py${{ inputs.python-version }}-pip-
-            ${{ runner.os }}-pip-
-
-      - name: Install dependencies
-        run: pip install -r requirements.txt -r requirements-dev.txt
+      # requirements-dev.txt começa com "-r requirements.txt", então puxa os dois
+      - name: Install dev dependencies
+        run: pip install -r requirements-dev.txt
 
       # Gate 1: corretude
-      - name: Run tests with pytest
-        run: pytest -v
+      - name: Run pytest
+        run: pytest -q
 
-      # Gate 2: CVEs nas dependências Python declaradas
-      - name: Security audit with pip-audit
-        run: pip-audit -r requirements.txt --desc
+      # Gate 2: CVEs nas dependências Python
+      - name: Audit dependencies
+        run: pip-audit -r requirements.txt
 
-      # Gate 3: CVEs no código e nas libs do filesystem.
+      # Gate 3: CVEs no filesystem (código + libs).
       # exit-code 1 é o que transforma o scan em gate; sem isso ele só informa.
-      - name: Security scan with Trivy
+      - name: Scan filesystem with Trivy
         uses: aquasecurity/trivy-action@v0.36.0
         with:
           scan-type: fs
           scan-ref: .
           format: table
           exit-code: '1'
-          ignore-unfixed: true      # CVE sem patch não trava o merge para sempre
+          ignore-unfixed: true
           vuln-type: os,library
           severity: MEDIUM,HIGH,CRITICAL
