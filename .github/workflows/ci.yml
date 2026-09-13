@@ -1,11 +1,12 @@
 name: CI
+
 on:
   push:
     branches: [main]
     tags: ['*']
   pull_request:
     branches: [main]
-  workflow_dispatch: #habilita o botão para rodar manual o action
+  workflow_dispatch:        # permite rodar manual pela aba Actions
 
 permissions:
   contents: read
@@ -13,13 +14,13 @@ permissions:
 jobs:
   test:
     name: Test
-    # Chama o workflow reutilizável com a lógica de testes
     uses: ./.github/workflows/_reusable-test.yml
+    # Sem "with": usa o default do reusable ["3.10", "3.11", "3.12"]
 
   notify:
     name: Notify pipeline result
     needs: [test]
-    if: always() # Garante que rode mesmo se o job "test" falhar
+    if: always()            # sem isto, nunca avisaria justamente sobre falha
     runs-on: ubuntu-latest
     steps:
       - name: Compose message
@@ -32,19 +33,25 @@ jobs:
             echo "status=FALHA" >> "$GITHUB_OUTPUT"
             echo "color=15158332" >> "$GITHUB_OUTPUT"
           fi
-          
-     # - name: Send webhook
-     #   run: |
-     #     curl -X POST -H 'Content-Type: application/json' \
-     #       -d '{
-     #         "embeds": [{
-     #           "title": "${{ steps.msg.outputs.status }} ${{ github.repository }}",
-     #           "color": ${{ steps.msg.outputs.color }},
-     #           "fields": [
-     #             {"name": "Branch", "value": "${{ github.ref_name }}", "inline": true},
-     #             {"name": "Author", "value": "${{ github.actor }}", "inline": true}
-     #           ],
-     #           "url": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-     #         }]
-     #       }' \
-     #      "${{ secrets.NOTIFY_WEBHOOK_URL }}"
+
+      - name: Send webhook
+        env:
+          WEBHOOK_URL: ${{ secrets.NOTIFY_WEBHOOK_URL }}
+        run: |
+          if [ -z "$WEBHOOK_URL" ]; then
+            echo "NOTIFY_WEBHOOK_URL nao configurado. Pulando."
+            exit 0
+          fi
+          curl -X POST -H 'Content-Type: application/json' \
+            -d '{
+              "embeds": [{
+                "title": "${{ steps.msg.outputs.status }} — ${{ github.repository }}",
+                "color": ${{ steps.msg.outputs.color }},
+                "fields": [
+                  {"name": "Branch", "value": "${{ github.head_ref || github.ref_name }}", "inline": true},
+                  {"name": "Author", "value": "${{ github.actor }}", "inline": true}
+                ],
+                "url": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+              }]
+            }' \
+            "$WEBHOOK_URL"
