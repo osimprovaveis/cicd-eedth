@@ -1,163 +1,57 @@
-====================================================================
-REUSABLE WORKFLOW - LOGICA DE TESTE
-====================================================================
-Este workflow e chamado pelo ci.yml e contem TODA a logica
-de teste em um unico lugar (DRY - Don't Repeat Yourself)
-
-CONVENCAO: O prefixo _ indica que e um workflow de apoio
-NUNCA deve ser disparado diretamente por eventos
-====================================================================
+# Workflow de apoio: chamado pelo ci.yml, nunca disparado por evento próprio.
 name: Reusable Test
 
-====================================================================
-DEFINICAO DOS PARAMETROS DE ENTRADA
-====================================================================
-workflow_call: Permite que este workflow seja chamado por outro
-
-inputs: Parametros que o workflow chamador deve fornecer
-python-version: Versao do Python a ser usada nos testes
-====================================================================
 on:
   workflow_call:
     inputs:
       python-version:
+        description: Versão do Python usada nos testes
         required: true
         type: string
-        description: 'Python version to use for testing'
 
-====================================================================
-JOB: TESTE REUTILIZAVEL
-====================================================================
 jobs:
   test:
     name: Run Tests
     runs-on: ubuntu-latest
-    
     steps:
-      ------------------------------------------------------------------
-      1. CHECKOUT DO CODIGO
-      ------------------------------------------------------------------
-      Baixa (clona) o codigo do repositorio
-      O runner comeca vazio - precisa do codigo para trabalhar
-      ==================================================================
       - name: Checkout code
         uses: actions/checkout@v4
-        # PINNING POR SHA (MAIS SEGURO):
-        # uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
 
-      ------------------------------------------------------------------
-      2. CONFIGURAR PYTHON
-      ------------------------------------------------------------------
-      Instala a versao especifica do Python no runner
-      Usa o input passado pelo workflow chamador
-      ==================================================================
       - name: Setup Python
         uses: actions/setup-python@v5
-        # PINNING POR SHA (MAIS SEGURO):
-        # uses: actions/setup-python@b93645b4c9fc1cd9e7ee7cc9bd9d7ba32c6ff3fc  # v5.4.0
         with:
           python-version: ${{ inputs.python-version }}
 
-      ------------------------------------------------------------------
-      3. CACHE DO PIP
-      ------------------------------------------------------------------
-      Armazena em cache os pacotes Python para acelerar builds
-      
-      COMO FUNCIONA:
-       Chave = hash do requirements.txt
-       Se mudar o arquivo -> nova chave -> cache miss
-       Se nao mudar -> cache hit -> restaura em segundos
-      
-      BENEFICIOS:
-       Build de 2min -> 10seg
-       Economiza recursos do GitHub
-       Melhor experiencia para desenvolvedores
-      ==================================================================
       - name: Cache pip packages
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: ~/.cache/pip
-          key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+          # A versão do Python entra na chave: cache de 3.10 não serve para 3.12
+          key: ${{ runner.os }}-py${{ inputs.python-version }}-pip-${{ hashFiles('requirements*.txt') }}
           restore-keys: |
+            ${{ runner.os }}-py${{ inputs.python-version }}-pip-
             ${{ runner.os }}-pip-
 
-      ------------------------------------------------------------------
-      4. INSTALAR DEPENDENCIAS
-      ------------------------------------------------------------------
-      Instala as dependencias do projeto
-      
-      requirements.txt:     Dependencias de producao
-      requirements-dev.txt: Dependencias de desenvolvimento (pytest, etc.)
-      ==================================================================
       - name: Install dependencies
-        run: |
-          pip install -r requirements.txt
-          pip install -r requirements-dev.txt
+        run: pip install -r requirements.txt -r requirements-dev.txt
 
-      ------------------------------------------------------------------
-      5. ESCANEAR VULNERABILIDADES - TRIVY
-      ------------------------------------------------------------------
-      Scanner de vulnerabilidades da Aqua Security
-      
-      O QUE ESCANEIA:
-       Filesystem: codigo e dependencias (Python, Node, Go, ...)
-       Container images: camada por camada
-       Git repositories: historico completo
-      
-      CONFIGURACOES IMPORTANTES:
-       vuln-type: os,library -> SO base + bibliotecas
-       severity: MEDIUM,HIGH,CRITICAL -> Gate com severidade
-       exit-code: '1' -> Falha o job se encontrar vulnerabilidades
-       ignore-unfixed: true -> Ignora CVEs sem patch
-      ==================================================================
-      - name: Security scan with Trivy
-        uses: aquasecurity/trivy-action@v0.36.0
-        with:
-          # Escaneia o codigo fonte (filesystem)
-          scan-type: 'fs'
-          scan-ref: '.'
-          format: 'table'
-          exit-code: '1'
-          ignore-unfixed: true
-          vuln-type: 'os,library'
-          severity: 'MEDIUM,HIGH,CRITICAL'
-          skip-setup-trivy: true
-          # Para escanear imagem Docker, use:
-          # image-ref: 'seu-app:latest'
-
-      ------------------------------------------------------------------
-      6. EXECUTAR TESTES COM PYTEST
-      ------------------------------------------------------------------
-      Verifica se o codigo funciona como esperado
-      
-      -v: Modo verboso (mais detalhes no log)
-      
-      SHIFT-LEFT EM ACAO:
-       Bugs sao detectados no PR, nao em producao
-       Custo do fix: 1x (PR) vs 100x (producao)
-      ==================================================================
+      # Gate 1: corretude
       - name: Run tests with pytest
         run: pytest -v
 
-      ------------------------------------------------------------------
-      7. AUDITORIA DE SEGURANCA - pip-audit
-      ------------------------------------------------------------------
-      Escaneia dependencias Python em busca de CVEs
-      
-      O QUE FAZ:
-       Le requirements.txt e requirements-dev.txt
-       Consulta PyPI Advisory DB e OSV
-       Falha o job se encontrar alguma vulnerabilidade
-      
-      COMPLEMENTA O TRIVY:
-       Trivy: SO base + bibliotecas + infra
-       pip-audit: Foco especifico em pacotes Python
-      ==================================================================
+      # Gate 2: CVEs nas dependências Python declaradas
       - name: Security audit with pip-audit
-        run: |
-          pip install pip-audit
-          pip-audit -r requirements.txt --desc
-          pip-audit -r requirements-dev.txt --desc || true
-          # O --desc mostra a descricao da vulnerabilidade
-          # O || true no dev permite que falhas em dependencias de desenvolvimento
-          # nao bloqueiem o pipeline (ajuste conforme necessidade)
+        run: pip-audit -r requirements.txt --desc
+
+      # Gate 3: CVEs no código e nas libs do filesystem.
+      # exit-code 1 é o que transforma o scan em gate; sem isso ele só informa.
+      - name: Security scan with Trivy
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          scan-type: fs
+          scan-ref: .
+          format: table
+          exit-code: '1'
+          ignore-unfixed: true      # CVE sem patch não trava o merge para sempre
+          vuln-type: os,library
+          severity: MEDIUM,HIGH,CRITICAL
