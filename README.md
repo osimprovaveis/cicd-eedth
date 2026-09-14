@@ -1,3 +1,5 @@
+Grupo 5: Eric Malone, Tiago Camilo, Danilo Huberto,Everton Genuino, Helierison Alves.
+
 
 # Starter-kit — CI/CD e Automação de Deployments
 
