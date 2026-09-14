@@ -4,7 +4,41 @@
 
 [![.github/workflows/ci.yml](https://github.com/emcsmalone/cicd-eedth/actions/workflows/ci.yml/badge.svg)](https://github.com/emcsmalone/cicd-eedth/actions/workflows/ci.yml)
 
+Configurações feitas no github:
 
+## 1) Tornar o repositório privado
+```
+Settings > General > Danger Zone > Change visibility > Change to private
+```
+
+## 2) Adicionar @HardSource como collaborator (Read)
+```
+Settings > Collaborators and teams > Add people 
+```
+
+Atribuir permissão Read
+Enviar o convite (o professor precisa aceitar)
+
+## 3) Configurar a branch protection da main
+```   
+Settings > Branches > Add branch protection rule para main
+```
+Marque: Require a pull request before merging, 
+
+## 4) Editar o .github/CODEOWNERS
+```
+.github/CODEOWNERS
+*                        @emcsmalone @tiagocamilos
+```
+
+### Resumo das configurações:
+```
+Settings > Collaborators	Todos os 5 membros com permissão Write
+Settings > Collaborators	@HardSource com permissão Read
+.github/CODEOWNERS		* @emcsmalone (ou * @emcsmalone @tiagocamilos como fallback)
+Settings > Branches		Regra para main com: Require PR + 1 approval
++ Require review from Code Owners + required checks + up to date
+```
 Repositório-base da disciplina. Cada equipe cria **o seu** repositório a partir
 deste template e o evolui ao longo do curso, entregando dois projetos avaliativos:
 **CI** e **CD**.
