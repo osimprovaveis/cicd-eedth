@@ -1,3 +1,9 @@
+# Grupo 05: 
+# Eric Malone
+# Everton Genuino
+# Danilo Huberto
+# Tiago Camilo
+# Helierison Alves
 
 # Starter-kit — CI/CD e Automação de Deployments
 
