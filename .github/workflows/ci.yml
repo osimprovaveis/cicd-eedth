@@ -1,57 +1,283 @@
 name: CI
 
+# Gatilhos: push na main, PR para main e execucao manual
 on:
   push:
     branches: [main]
-    tags: ['*']
   pull_request:
     branches: [main]
-  workflow_dispatch:        # permite rodar manual pela aba Actions
+  workflow_dispatch:
 
+# Permissoes minimas: leitura do codigo (jobs especificos pedem mais)
 permissions:
   contents: read
 
+# Concorrencia: cancela runs antigos do mesmo branch/workflow
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+# Variaveis globais reutilizadas pelos jobs
+env:
+  IMAGE_NAME: app-k8s-todolist
+  PYTHON_DEFAULT: '3.12'
+
 jobs:
+  # Lint: analise estatica com ruff, falha rapido se o codigo estiver sujo
+  lint:
+    name: Lint (ruff)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: Set up Python
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: ${{ env.PYTHON_DEFAULT }}
+
+      - name: Install dev dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements-dev.txt
+
+      - name: Run ruff
+        run: ruff check .
+
+  # Testes: delega para o reusable, matrix 3.11/3.12/3.13
   test:
     name: Test
     uses: ./.github/workflows/_reusable-test.yml
-    # Sem "with": usa o default do reusable ["3.10", "3.11", "3.12"]
+    with:
+      python-versions: '["3.11", "3.12", "3.13"]'
 
+  # Seguranca (deps): audita vulnerabilidades com pip-audit
+  security:
+    name: Dependency audit (pip-audit)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: Set up Python
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: ${{ env.PYTHON_DEFAULT }}
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt -r requirements-dev.txt
+
+      - name: Run pip-audit
+        run: pip-audit
+
+  # Seguranca (filesystem): Trivy escaneia o codigo, gera SARIF
+  trivy:
+    name: Vulnerability scan (Trivy, filesystem)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: Run Trivy
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          scan-type: fs
+          scan-ref: .
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          exit-code: '0'
+          format: sarif
+          output: trivy-results.sarif
+
+      - name: Upload SARIF to code scanning
+        uses: github/codeql-action/upload-sarif@faaca9a8f6edddba5725ffe5adefdab6669a2eca # v3
+        continue-on-error: true
+        with:
+          sarif_file: trivy-results.sarif
+          category: trivy-fs
+
+      - name: Upload SARIF as artifact
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: trivy-fs-results
+          path: trivy-results.sarif
+
+  # Build: constroi a imagem Docker (sem push) e salva como artefato
+  build:
+    name: Build image
+    needs: [lint, test, security]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    outputs:
+      repo: ${{ steps.image.outputs.repo }}
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      # Resolve o nome da imagem: ghcr.io/<owner>/<IMAGE_NAME>
+      - name: Resolve image reference
+        id: image
+        env:
+          OWNER: ${{ github.repository_owner }}
+        run: |
+          repo="ghcr.io/$(echo "$OWNER" | tr '[:upper:]' '[:lower:]')/$IMAGE_NAME"
+          echo "repo=$repo" >> "$GITHUB_OUTPUT"
+
+      - name: Build Docker image
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
+        with:
+          context: .
+          push: false
+          load: true
+          build-args: |
+            IMAGE_TAGS=${{ steps.image.outputs.repo }}:${{ github.sha }}
+          tags: ${{ steps.image.outputs.repo }}:${{ github.sha }}
+
+      - name: Save image as artifact
+        run: docker save "${{ steps.image.outputs.repo }}:${{ github.sha }}" -o image.tar
+
+      - name: Upload image artifact
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: docker-image
+          path: image.tar
+          retention-days: 1
+
+  # Seguranca (imagem): Trivy escaneia a imagem construida
+  trivy_image:
+    name: Vulnerability scan (Trivy, image)
+    needs: build
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - name: Download image artifact
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: docker-image
+
+      - name: Load image
+        run: docker load -i image.tar
+
+      - name: Run Trivy
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          scan-type: image
+          image-ref: ${{ needs.build.outputs.repo }}:${{ github.sha }}
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          exit-code: '0'
+          format: sarif
+          output: trivy-results.sarif
+
+      - name: Upload SARIF to code scanning
+        uses: github/codeql-action/upload-sarif@faaca9a8f6edddba5725ffe5adefdab6669a2eca # v3
+        continue-on-error: true
+        with:
+          sarif_file: trivy-results.sarif
+          category: trivy-image
+
+      - name: Upload SARIF as artifact
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: trivy-image-results
+          path: trivy-results.sarif
+
+  # Publish: envia a imagem para o GHCR apos todos os gates passarem
+  publish:
+    name: Publish image to GHCR
+    needs: [lint, test, security, trivy, build, trivy_image]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    environment: production
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Download image artifact
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: docker-image
+
+      - name: Load image
+        run: docker load -i image.tar
+
+      - name: Tag image as latest
+        run: docker tag "${{ needs.build.outputs.repo }}:${{ github.sha }}" "${{ needs.build.outputs.repo }}:latest"
+
+      # Login no GHCR com o GITHUB_TOKEN automatico
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Push image
+        run: |
+          docker push "${{ needs.build.outputs.repo }}:${{ github.sha }}"
+          docker push "${{ needs.build.outputs.repo }}:latest"
+
+  # Notify: envia o resultado do pipeline para o webhook (Discord/Slack)
   notify:
     name: Notify pipeline result
-    needs: [test]
-    if: always()            # sem isto, nunca avisaria justamente sobre falha
-    runs-on: ubuntu-latest
+    needs: [lint, test, security, trivy, build, trivy_image, publish]
+    if: always()
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    env:
+      WEBHOOK: ${{ secrets.NOTIFY_WEBHOOK_URL }}
     steps:
+      # Monta a mensagem conforme o resultado dos jobs
       - name: Compose message
         id: msg
         run: |
-          if [ "${{ needs.test.result }}" = "success" ]; then
-            echo "status=SUCESSO" >> "$GITHUB_OUTPUT"
-            echo "color=3066993" >> "$GITHUB_OUTPUT"
+          if [ "${{ needs.lint.result }}" = "success" ] \
+            && [ "${{ needs.test.result }}" = "success" ] \
+            && [ "${{ needs.security.result }}" = "success" ] \
+            && [ "${{ needs.trivy.result }}" = "success" ] \
+            && [ "${{ needs.build.result }}" != "failure" ] \
+            && [ "${{ needs.trivy_image.result }}" != "failure" ] \
+            && [ "${{ needs.publish.result }}" != "failure" ]; then
+            echo "status=✅ SUCESSO" >> "$GITHUB_OUTPUT"
+            echo "color=3066993"    >> "$GITHUB_OUTPUT"
           else
-            echo "status=FALHA" >> "$GITHUB_OUTPUT"
-            echo "color=15158332" >> "$GITHUB_OUTPUT"
+            echo "status=❌ FALHA"  >> "$GITHUB_OUTPUT"
+            echo "color=15158332"   >> "$GITHUB_OUTPUT"
           fi
 
+      # Envia o payload JSON para o webhook configurado
       - name: Send webhook
+        if: env.WEBHOOK != ''
         env:
-          WEBHOOK_URL: ${{ secrets.NOTIFY_WEBHOOK_URL }}
+          STATUS: ${{ steps.msg.outputs.status }}
+          COLOR: ${{ steps.msg.outputs.color }}
+          BRANCH: ${{ github.ref_name }}
+          AUTHOR: ${{ github.actor }}
+          TITLE_SUFFIX: ${{ github.repository }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
-          if [ -z "$WEBHOOK_URL" ]; then
-            echo "NOTIFY_WEBHOOK_URL nao configurado. Pulando."
-            exit 0
-          fi
-          curl -X POST -H 'Content-Type: application/json' \
-            -d '{
-              "embeds": [{
-                "title": "${{ steps.msg.outputs.status }} — ${{ github.repository }}",
-                "color": ${{ steps.msg.outputs.color }},
-                "fields": [
-                  {"name": "Branch", "value": "${{ github.head_ref || github.ref_name }}", "inline": true},
-                  {"name": "Author", "value": "${{ github.actor }}", "inline": true}
-                ],
-                "url": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-              }]
-            }' \
-            "$WEBHOOK_URL"
+          payload=$(jq -n \
+            --arg title "$STATUS — $TITLE_SUFFIX" \
+            --argjson color "$COLOR" \
+            --arg branch "$BRANCH" \
+            --arg author "$AUTHOR" \
+            --arg url "$RUN_URL" \
+            '{embeds: [{title: $title, color: $color, fields: [{name: "Branch", value: $branch, inline: true}, {name: "Autor", value: $author, inline: true}], url: $url}]}')
+          curl -sS -X POST -H 'Content-Type: application/json' \
+            -d "$payload" "$WEBHOOK"
