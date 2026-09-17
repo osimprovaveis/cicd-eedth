@@ -178,6 +178,14 @@ Adicione ao arquivo `C:\Windows\System32\drivers\etc\hosts`
 <IP_DA_EC2>   todolist.local
 ```
 
+Adicione ao arquivo `/etc/hosts`
+(Linux, como sudo):
+
+```
+<IP_DA_EC2>   rolling.local
+<IP_DA_EC2>   todolist.local
+```
+
 Depois abra `http://rolling.local/` — tema **roxo**.
 
 ### 3. Deploy Blue/Green — slot BLUE
