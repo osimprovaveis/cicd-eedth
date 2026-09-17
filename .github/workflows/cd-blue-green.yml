@@ -13,7 +13,7 @@
 #
 # Uso: Actions → CD - Blue/Green (deploy por cor) → Run workflow
 # =============================================================================
-name: CD - Blue/Green (deploy por cor)
+name: CD - Blue/Green (deploy por cor) - 03
 
 on:
   workflow_dispatch:
