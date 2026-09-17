@@ -125,6 +125,14 @@ Ver [`docs/ci-pipeline.md`](docs/ci-pipeline.md).
 
 ---
 
+## Evolução desde a Atividade 1
+
+O pipeline de CI (Atividade 1) foi reaproveitado na Atividade 2:
+- O `ci.yml` continua sendo o gate em PR.
+- O job de build da imagem foi estendido para injetar a tag do commit
+  (`${{ github.sha }}`), permitindo rastreabilidade.
+- O `_reusable-test.yml` foi mantido e é chamado pelo CI.
+
 ## Pipeline de CD (Atividade 2)
 
 **Documentação detalhada:** [`docs/cd-pipeline.md`](docs/cd-pipeline.md)
