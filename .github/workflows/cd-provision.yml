@@ -20,7 +20,7 @@
 # para evitar quebra por SHA errado. Em produção real, prefira pin por SHA
 # com auditoria.
 # =============================================================================
-name: CD - Provision Infra
+name: CD - Provision Infra - 01
 
 on:
   workflow_dispatch:
