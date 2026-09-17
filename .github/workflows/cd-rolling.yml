@@ -11,7 +11,7 @@
 #
 # Uso: Actions → CD - Rolling Update → Run workflow → image_tag: latest
 # =============================================================================
-name: CD - Rolling Update
+name: CD - Rolling Update - 02
 
 on:
   workflow_dispatch:
