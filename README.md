@@ -11,7 +11,7 @@ CD, a infraestrutura como código (Terraform) e a configuração da EC2
 
 **Membros:**
 
-### Grupo 5: Eric Malone, Tiago Camilo, Danilo Huberto,Everton Genuino, Helierison Alves.
+### Grupo 5: Eric Malone, Tiago Camilo, Danilo Huberto, Everton Genuino, Helierison Alves.
 
 ---
 
