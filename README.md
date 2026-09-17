@@ -1,5 +1,3 @@
-Grupo 5: Eric Malone, Tiago Camilo, Danilo Huberto,Everton Genuino, Helierison Alves.
-
 
 # Starter-kit — CI/CD e Automação de Deployments
 
@@ -13,7 +11,7 @@ CD, a infraestrutura como código (Terraform) e a configuração da EC2
 
 **Membros:**
 
-- @dhuberto (Owner)
+- Grupo 5: Eric Malone, Tiago Camilo, Danilo Huberto,Everton Genuino, Helierison Alves.
 
 ---
 
