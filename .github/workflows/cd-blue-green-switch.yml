@@ -9,7 +9,7 @@
 #   - Ativar green: Run workflow → color: green
 #   - Rollback para blue: Run workflow → color: blue
 # =============================================================================
-name: CD - Blue/Green (switch de tráfego)
+name: CD - Blue/Green (switch de tráfego) - 04
 
 on:
   workflow_dispatch:
